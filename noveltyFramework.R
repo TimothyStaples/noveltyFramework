@@ -8,7 +8,7 @@
 # License:      MIT License
 # ========================================================================= #### 
 # SET DIRECTORY ####
-setwd("/Users/uqtstapl/Dropbox/Tim/Post-doc/Research projects/PaleoNovelty/prodCode")
+setwd("PATH TO THIS FILE")
 
 # READ IN SUPPLEMENTARY FUNCTIONS ####
 sapply(list.files("./functions", full.names = TRUE), source)

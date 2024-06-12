@@ -2,6 +2,8 @@ Code used to generate results, figures and tables for GEB submission: A conceptu
 
 The data used to generate this publication were obtained from the Neotoma Paleoecological Database: details are located in dataProcessing.R.
 
+Running scripts will require a copy of the entire repository, including subfolders. Correct working directory entries in toplevel .R scripts and relative file paths will do the rest.
+
 REPOSITORY TREE:
 
 **./dataProcessing.R**: commented code to access Neotoma data and harmonize taxonomy. Raw outputs have been included in repository so this script does not need to be re-run to reproduce results.

@@ -10,7 +10,7 @@
 # Global attributes & working directories ####
 
 rm(list=ls())
-setwd("/Users/uqtstapl/Library/CloudStorage/Dropbox/Tim/Post-doc/Research projects/PaleoNovelty/prodCode")
+setwd("PATH TO THIS FILE")
 
 # Global functions ####
 
