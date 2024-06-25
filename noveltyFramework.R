@@ -8,7 +8,7 @@
 # License:      MIT License
 # ========================================================================= #### 
 # SET DIRECTORY ####
-setwd("PATH TO THIS FILE")
+setwd("/Users/uqtstapl/Library/CloudStorage/Dropbox/Tim/Post-doc/Research projects/PaleoNovelty/prodCode")
 
 # READ IN SUPPLEMENTARY FUNCTIONS ####
 sapply(list.files("./functions", full.names = TRUE), source)
@@ -31,7 +31,6 @@ package.loader(c("rworldmap", "vegan", "sf", "shape", "lme4"))
 # ========================================================================= ####
 
 # 1. NEOTOMA DATA IMPORT ####
-rm(list=ls())
 
 # read in processed Neotoma data
 neo <- readRDS("./rawdata/processedRecords.rds")
@@ -168,6 +167,7 @@ novGrid = novGrid[,c("siteid", "long", "lat",
 cor(cbind(sapply(novGrid[,4:7], logit),
           sapply(novGrid[,12:13], log)), 
           use="complete.obs")
+
 # FIGURES ####
 #         novelty PCA ####
 
@@ -296,7 +296,6 @@ split.screen(rbind(c(0.1,0.545,0.52,0.99),
                    c(0.12,0.32,0.08,0.11),
                    c(0.565,0.765,0.08,0.11)))
 
-vectorScale = 1
 novMat = novGrid[,c("noAnalog", "timeArrow", "pastComp", "presentComp")]
 
 sapply(1:4, function(n){
@@ -312,11 +311,14 @@ plot(subStates, max.plot=1, col="white", bg="grey80", border="black", add=TRUE)
 
 novCol = c("darkblue", "red", "darkgreen", "purple")[n]
 novRamp = colorRampPalette(c("white", novCol))
-points(novGrid$lat ~ novGrid$long, 
+points(novGrid$lat ~ novGrid$long, cex=1.25,
        pch=c(21,22)[as.factor(novMat[,n] > 0.15)], 
        lwd=0.5,
        bg=novRamp(4)[cut(ifelse(novMat[,n] > 0.2, 0.2, novMat[,n]), breaks=seq(0,0.20,0.05))])
 box()
+text(novGrid$lat ~ novGrid$long,
+     labels=novGrid$fig3Number, col="white", cex=0.5)
+
 
 if(n %in% c(3:4)){
   axis(side=1, at=seq(-100,-90,2), labels=parse(text=paste0(abs(rev(seq(90,100,2))), "*degree~W")), mgp=c(3,0.2,0))
@@ -347,7 +349,7 @@ rect(xleft=gridX[-length(gridX)], xright=gridX[-1],
      ybottom=par("usr")[3], ytop=par("usr")[4],
      col=novRamp(4))
 axis(side=1, at=gridX[c(1,3,5)], labels=seq(0,0.2,0.1))
-
+box()
 close.screen(5+n)
 
 })
@@ -399,7 +401,7 @@ presentPoints = neoOrd$points[1:dim(neoArrSubProp)[1],]
 pastPoints = neoOrd$points[(dim(neoArrSubProp)[1]+1):nrow(neoOrd$points),]
 novGridOrder = novGrid[match(rownames(presentPoints), novGrid$siteid),]
 
-novScaling = function(x){c(0.5,0.8,1,1.5)[cut(x, breaks=c(0,0.05,0.1,0.15,0.2,1))]}
+novScaling = function(x){c(0.5,0.8,1,1.5, 1.5)[cut(x, breaks=c(0,0.05,0.1,0.15,0.2,1))]}
 
 # no-analog points
 if(n==1){
@@ -407,7 +409,8 @@ if(n==1){
   segments(x0 = pastPoints[,1],
            y0 = pastPoints[,2],
            x1 = presentPoints[match(novGridOrder$noAnalogWhich, rownames(presentPoints)), 1],
-           y1 = presentPoints[match(novGridOrder$noAnalogWhich, rownames(presentPoints)), 2])
+           y1 = presentPoints[match(novGridOrder$noAnalogWhich, rownames(presentPoints)), 2],
+           lty="31")
   
   points(presentPoints, pch=4, col="black", cex=0.5)
 
@@ -733,10 +736,13 @@ sapply(1:4, function(n){
   novCol = c("darkblue", "red", "darkgreen", "purple")[n]
   novRamp = colorRampPalette(c("white", novCol))
   points(novGridGen$lat ~ novGridGen$long, 
-         pch=c(21,22)[as.factor(novMat[,n] > 0.15)], 
-         lwd=0.5,
+         pch=c(21,22)[as.factor(novMat[,n] > 0.2)], 
+         lwd=0.5, cex=1.25,
          bg=novRamp(5)[cut(ifelse(novMat[,n] > 0.25, 0.25, novMat[,n]), breaks=seq(0,0.25,0.05))])
   box()
+  
+  text(novGridGen$lat ~ novGridGen$long,
+       labels=novGridGen$fig3Number, col="white", cex=0.5)
   
   if(n %in% c(3:4)){
     axis(side=1, at=seq(-100,-90,2), labels=parse(text=paste0(abs(rev(seq(90,100,2))), "*degree~W")), mgp=c(3,0.2,0))
