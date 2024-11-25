@@ -3,23 +3,34 @@
 # Description:  This script performs Neotoma data download and pre-processing
 # Author:       Timothy Staples
 # Date Created: 2022-01-01
-# Last Modified: 2024-06-11
+# Last Modified: 2024-11-25
 # Version:      1.0
 # License:      MIT License
 # ========================================================================= #### 
 # Global attributes & working directories ####
 
-rm(list=ls())
-setwd("PATH TO THIS FILE")
-
-# Global functions ####
-
-# source functions from 'functions' sub-folder
-sapply(paste0("./functions/", list.files("./functions", pattern =".R")), source)
+package.loader <- function(packages){
+  # are there any packages that aren't already installed?
+  new.packages <- packages[!(packages %in% installed.packages()[,"Package"])]
+  
+  # If there's at least 1, install them
+  if(length(new.packages) > 0){
+    install.packages(new.packages, dependencies=T)
+  }
+  
+  # then load the packages
+  sapply(packages, require, character.only=T)
+  
+}
 
 # Packages ####
-
 package.loader(c("neotoma2", "WorldFlora"))
+
+setwd(here())
+
+# Global functions ####
+# source functions from 'functions' sub-folder
+sapply(paste0("./functions/", list.files("./functions", pattern =".R")), source)
 
 # A little custom function to add dates to output files
 date.wrap <- function(string, ext){

@@ -3,18 +3,27 @@
 # Description:  This script performs analyses for the quantitative case study
 # Author:       Timothy Staples
 # Date Created: 2022-01-01
-# Last Modified: 2024-06-11
+# Last Modified: 2024-11-25
 # Version:      1.0
 # License:      MIT License
 # ========================================================================= #### 
-# SET DIRECTORY ####
-setwd("/Users/uqtstapl/Library/CloudStorage/Dropbox/Tim/Post-doc/Research projects/PaleoNovelty/prodCode")
 
-# READ IN SUPPLEMENTARY FUNCTIONS ####
-sapply(list.files("./functions", full.names = TRUE), source)
+package.loader <- function(packages){
+  # are there any packages that aren't already installed?
+  new.packages <- packages[!(packages %in% installed.packages()[,"Package"])]
+  
+  # If there's at least 1, install them
+  if(length(new.packages) > 0){
+    install.packages(new.packages, dependencies=T)
+  }
+  
+  # then load the packages
+  sapply(packages, require, character.only=T)
+  
+}
 
 # DEPENDENCIES ####
-package.loader(c("rworldmap", "vegan", "sf", "shape", "lme4"))
+package.loader(c("rworldmap", "vegan", "sf", "shape", "lme4", "here"))
 
 # Dependencies:
 # - rworldmap: world map shape files
@@ -22,6 +31,13 @@ package.loader(c("rworldmap", "vegan", "sf", "shape", "lme4"))
 # - sf: spatial data capability
 # - shape: supplementary plotting tools
 # - lme4: mixed-effects modelling
+# - here: to identify location of script without needing RStudio
+
+# SET DIRECTORY ####
+setwd(here())
+
+# READ IN SUPPLEMENTARY FUNCTIONS ####
+sapply(list.files("./functions", full.names = TRUE), source)
 
 # Notes:
 # Neotoma download and taxonomic synonymization are conducted in a separate script
@@ -80,7 +96,7 @@ neoSub$timeBin <- cutCenter(neoSub$age,
 
 # create site x taxa x timebin array (3D array)
 neoArr <- tapply(neoSub$value,
-                 list(neoSub$siteid, neoSub$family, neoSub$timeBin), sum, na.rm=TRUE)
+                 list(neoSub$siteid, neoSub$family, neoSub$timeBin), mean, na.rm=TRUE)
 neoArr[is.na(neoArr)] = 0
 dim(neoArr) # dimensions are ordered as site, taxa, time
 
@@ -188,9 +204,20 @@ novelCat = rowSums(novGrid[,4:7] > 0.15) > 0
 # save novelty data
 novGrid$fig3Number = ""
 novGrid$fig3Number[novelCat] = sum(novelCat):1
+
+novGrid$PC1 = a$scores[,1]
+novGrid$PC2 = a$scores[,2]
+novGrid$PC3 = a$scores[,3]
+novGrid$PC4 = a$scores[,4]
+
 write.csv(novGrid, "./outputs/novelResults.csv")
 
-pdf("./plots/noveltyPCA.pdf", height=3.5, width=7, useDingbats = FALSE)
+# labelled points
+
+labPoints = novGrid$siteid[c(sapply(novGrid[,c("PC1","PC2","PC3","PC4")], which.min),
+                             sapply(novGrid[,c("PC1","PC2","PC3","PC4")], which.max))]
+
+pdf("./plots/noveltyPCA.pdf", height=3.25, width=7, useDingbats = FALSE)
 split.screen(rbind(c(0.1,0.49,0.15,0.99),
                    c(0.6,0.99,0.15,0.99)))
 vectorScale = 1
@@ -201,7 +228,7 @@ col3 = rgb(colorRamp(c("red", "white", "blue"))(unitScale(a$scores[,3], custMin=
 col4 = rgb(colorRamp(c("yellow", "white", "darkgreen"))(unitScale(a$scores[,4], custMin= -max(abs(a$scores[,4])), custMax=max(abs(a$scores[,4]))))/255)
 
 screen(1)
-par(mar=c(0,0,0,0), ps=10, tcl=-0.25, mgp=c(3,0.5,0), las=1)
+par(mar=c(0,0,0,0), ps=8, tcl=-0.25, mgp=c(3,0.5,0), las=1)
 plot(a$scores[,1:2], asp=1, type="n", axes=FALSE, xlab="", ylab="")
 axis(side=1, mgp=c(3,0.1,0)); mtext(side=1, line=1.25, text=paste0("PC1 (", sprintf("%.2f", aVar[1]*100), "%)"), las=0)
 axis(side=2); mtext(side=2, line=2, text=paste0("PC2 (", sprintf("%.2f", aVar[2]*100), "%)"), las=0)
@@ -211,11 +238,12 @@ Arrows(x0=0, y0=0, col="grey50",
        arr.type="triangle", arr.length=0.15, arr.width=0.15, lwd=2)
 text(x=a$loadings[,1]*vectorScale, y=a$loadings[,2]*vectorScale, 
      labels=c("No-analog", "Time's arrow", "Past comp", "Present comp"),
-     adj=0, col="grey50", pos=4)
+     adj=0, col="grey50", pos=4,)
 
-points(a$scores[,1:2], pch=c(21,22)[as.factor(novelCat)], lwd=0.5,
-       bg=mapply(c1=col1, c2=col2, colorMix), cex=ifelse(novelCat, 1.5, 1))
-text(a$scores[novelCat,1:2], labels=sum(novelCat==TRUE):1, cex=0.575, col="white")
+points(a$scores[,1:2], pch=21, lwd=0.5,
+       bg=mapply(c1=col1, c2=col2, colorMix), cex=1)
+text(a$scores[match(labPoints, novGrid$siteid),1:2], 
+     labels=labPoints, cex=0.75)
 
 text(x=relative.axis.point(0.02, "x"), y=relative.axis.point(0.95, "y"),
      labels="(A)", font=1, adj=0)
@@ -223,7 +251,7 @@ box()
 close.screen(1)
 
 screen(2)
-par(mar=c(0,0,0,0), ps=10, tcl=-0.25, mgp=c(3,0.5,0), las=1)
+par(mar=c(0,0,0,0), ps=8, tcl=-0.25, mgp=c(3,0.5,0), las=1)
 plot(a$scores[,3:4], asp=1, type="n", axes=FALSE, xlab="", ylab="", ylim=c(-0.8,0.8), xlim=c(-1,1))
 axis(side=1, mgp=c(3,0.1,0)); mtext(side=1, line=1.25, text=paste0("PC3 (", sprintf("%.2f", aVar[3]*100), "%)"), las=0)
 axis(side=2); mtext(side=2, line=2, text=paste0("PC4 (", sprintf("%.2f", aVar[4]*100), "%)"), las=0)
@@ -234,10 +262,10 @@ Arrows(x0=0, y0=0, col="grey50",
 text(x=a$loadings[,3]*vectorScale, y=a$loadings[,4]*vectorScale, 
      labels=c("No-analog", "Time's arrow", "Past comp", "Present comp"),
      adj=0, col="grey50", pos=c(3,1,2,3))
-points(a$scores[,3:4], pch=c(21,22)[as.factor(novelCat)],  lwd=0.5,
-       bg=mapply(c1=col3, c2=col4, colorMix), cex=ifelse(novelCat, 1.5, 1))
-text(a$scores[novelCat,3:4], labels=sum(novelCat==TRUE):1, cex=0.575, 
-     col="black")
+points(a$scores[,3:4], pch=21,  lwd=0.5,
+       bg=mapply(c1=col1, c2=col2, colorMix), cex=1)
+text(a$scores[match(labPoints, novGrid$siteid),3:4], 
+     labels=labPoints, cex=0.75)
 text(x=relative.axis.point(0.02, "x"), y=relative.axis.point(0.95, "y"),
      labels="(B)", font=1, adj=0)
 box()
@@ -256,7 +284,7 @@ split.screen(rbind(c(0.15,0.95,0.05,0.99),
 vectorScale = 1
 
 screen(1)
-par(mar=c(0,0,0,0), ps=10, tcl=-0.25, mgp=c(3,0.5,0), las=1)
+par(mar=c(0,0,0,0), ps=8, tcl=-0.25, mgp=c(3,0.5,0), las=1)
 plot(NULL, xlim=c(-97.5,-90), ylim=c(41,49), xlab="", ylab="", axes=FALSE)
 rect(xleft=par("usr")[1], xright=par("usr")[2], ybottom=par("usr")[3], ytop=par("usr")[4],
      col="grey90")
@@ -269,6 +297,8 @@ plot(subStates, max.plot=1, col="white", bg="grey80", border="black", add=TRUE)
 
 points(novGrid$lat ~ novGrid$long, pch=21, lwd=0.5,
        bg="grey50")
+text(novGrid[match(labPoints, novGrid$siteid),c("long","lat")], 
+     labels=labPoints, cex=0.75)
 box()
 close.screen(1)
 
@@ -301,7 +331,7 @@ novMat = novGrid[,c("noAnalog", "timeArrow", "pastComp", "presentComp")]
 sapply(1:4, function(n){
   
 screen(n)
-par(mar=c(0,0,0,0), ps=10, tcl=-0.25, mgp=c(3,0.5,0), las=1)
+par(mar=c(0,0,0,0), ps=8, tcl=-0.25, mgp=c(3,0.5,0), las=1)
 plot(NULL, xlim=c(-97.5,-90), ylim=c(41,49.75), xlab="", ylab="", axes=FALSE)
 rect(xleft=par("usr")[1], xright=par("usr")[2], ybottom=par("usr")[3], ytop=par("usr")[4],
      col="grey90")
@@ -312,13 +342,12 @@ plot(subStates, max.plot=1, col="white", bg="grey80", border="black", add=TRUE)
 novCol = c("darkblue", "red", "darkgreen", "purple")[n]
 novRamp = colorRampPalette(c("white", novCol))
 points(novGrid$lat ~ novGrid$long, cex=1.25,
-       pch=c(21,22)[as.factor(novMat[,n] > 0.15)], 
+       pch=21, 
        lwd=0.5,
        bg=novRamp(4)[cut(ifelse(novMat[,n] > 0.2, 0.2, novMat[,n]), breaks=seq(0,0.20,0.05))])
 box()
-text(novGrid$lat ~ novGrid$long,
-     labels=novGrid$fig3Number, col="white", cex=0.5)
-
+text(novGrid[match(labPoints, novGrid$siteid),c("long","lat")], 
+     labels=labPoints, cex=0.75)
 
 if(n %in% c(3:4)){
   axis(side=1, at=seq(-100,-90,2), labels=parse(text=paste0(abs(rev(seq(90,100,2))), "*degree~W")), mgp=c(3,0.2,0))
@@ -342,7 +371,7 @@ close.screen(n)
 
 
 screen(5+n)
-par(mar=c(0,0,0,0), ps=10, tcl=-0.25, mgp=c(3,0.1,0), las=1)
+par(mar=c(0,0,0,0), ps=8, tcl=-0.25, mgp=c(3,0.1,0), las=1)
 plot.new()
 gridX = seq(par('usr')[1], par("usr")[2], len=5)
 rect(xleft=gridX[-length(gridX)], xright=gridX[-1],
@@ -377,7 +406,7 @@ set.seed(001155)
 neoOrd <- metaMDS(neoNMDSArr)
 
 pdf("./plots/newOrd.pdf", height=8, width=8, useDingbats = FALSE)
-par(mfrow=c(2,2), oma=c(3,3,0.5,0.5), mar=c(0,0,0,0), mgp=c(3,0.5,0), ps=10, tcl=-0.25, las=1)
+par(mfrow=c(2,2), oma=c(3,3,0.5,0.5), mar=c(0,0,0,0), mgp=c(3,0.5,0), ps=8, tcl=-0.25, las=1)
 
 sapply(1:4, function(n){
 
@@ -392,7 +421,7 @@ axis(side=2); mtext(side=2, line=2, las=0, text="nMDS2")
 } else {axis(side=2, labels=NA)}
 
 novCol = c("darkblue", "red", "darkgreen", "purple")[n]
-novRamp = colorRampPalette(c("white", novCol))(5)
+novRamp = colorRampPalette(c("white", novCol))(6)
 
 points(neoOrd$species, pch=16, lwd=2, col="grey")
 text(neoOrd$species, labels=gsub("aceae|inosae|ositae", "", rownames(neoOrd$species)), pos=2, col="grey")
@@ -418,6 +447,9 @@ if(n==1){
          pch=21, cex=novScaling(novGridOrder$noAnalog), 
          bg=novRamp[cut(novGridOrder$noAnalog, breaks=seq(0,0.25,0.05))])
   
+  text(pastPoints[match(labPoints, rownames(pastPoints)),],
+       labels=labPoints, cex=0.75)
+    
 }
 
 # time's arrow points
@@ -431,11 +463,13 @@ if(n==2){
   
   points(pastPoints, pch=4, col="black", cex=0.5)
   
-  
   points(presentPoints, 
          pch=21, cex=novScaling(novGridOrder$timeArrow), 
          bg=novRamp[cut(novGridOrder$timeArrow, breaks=seq(0,0.25,0.05))])
-  
+
+  text(presentPoints[match(labPoints, rownames(presentPoints)),],
+       labels=labPoints, cex=0.75)
+    
 }
 
 # past comparison points
@@ -449,8 +483,10 @@ if(n==3){
   
   points(pastPoints, 
          pch=21, cex=novScaling(novGridOrder$pastComp), 
-         bg=novRamp[cut(novGridOrder$pastComp, breaks=seq(0,0.25,0.05))])
+         bg=novRamp[cut(novGridOrder$pastComp, breaks=seq(0,0.3,0.05))])
   
+  text(pastPoints[match(labPoints, rownames(pastPoints)),],
+       labels=labPoints, cex=0.75)
   
   legend(x=relative.axis.point(0.02, "x"),
          y=relative.axis.point(0.9, "y"),
@@ -471,8 +507,10 @@ if(n==4){
   
   points(presentPoints, 
          pch=21, cex=novScaling(novGridOrder$presentComp), 
-         bg=novRamp[cut(novGridOrder$presentComp, breaks=seq(0,0.25,0.05))])
+         bg=novRamp[cut(novGridOrder$presentComp, breaks=seq(0,0.3,0.05))])
   
+  text(presentPoints[match(labPoints, rownames(presentPoints)),],
+       labels=labPoints, cex=0.75)  
 }
 
 text(x=relative.axis.point(0.02, "x"), y=relative.axis.point(0.95, "y"),
@@ -675,9 +713,9 @@ text(x=a$loadings[,1]*vectorScale, y=a$loadings[,2]*vectorScale,
      labels=c("No-analog", "Time's arrow", "Past comp", "Present comp"),
      adj=0, col="grey50", pos=4)
 
-points(a$scores[,1:2], pch=c(21,22)[as.factor(novelCat)], lwd=0.5,
-       bg=mapply(c1=col1, c2=col2, colorMix), cex=ifelse(novelCat, 1.5, 1))
-text(a$scores[novelCat,1:2], labels=sum(novelCat==TRUE):1, cex=0.575, col="white")
+points(a$scores[,1:2], pch=21, lwd=0.5,
+       bg=mapply(c1=col1, c2=col2, colorMix), cex=1)
+#text(a$scores[novelCat,1:2], labels=sum(novelCat==TRUE):1, cex=0.575, col="white")
 
 text(x=relative.axis.point(0.02, "x"), y=relative.axis.point(0.95, "y"),
      labels="(A)", font=1, adj=0)
@@ -696,10 +734,10 @@ Arrows(x0=0, y0=0, col="grey50",
 text(x=a$loadings[,3]*vectorScale, y=a$loadings[,4]*vectorScale, 
      labels=c("No-analog", "Time's arrow", "Past comp", "Present comp"),
      adj=0, col="grey50", pos=c(3,1,2,3))
-points(a$scores[,3:4], pch=c(21,22)[as.factor(novelCat)],  lwd=0.5,
-       bg=mapply(c1=col3, c2=col4, colorMix), cex=ifelse(novelCat, 1.5, 1))
-text(a$scores[novelCat,3:4], labels=sum(novelCat==TRUE):1, cex=0.575, 
-     col="black")
+points(a$scores[,3:4], pch=21,  lwd=0.5,
+       bg=mapply(c1=col1, c2=col2, colorMix), cex=1)
+#text(a$scores[novelCat,3:4], labels=sum(novelCat==TRUE):1, cex=0.575, 
+#     col="black")
 text(x=relative.axis.point(0.02, "x"), y=relative.axis.point(0.95, "y"),
      labels="(B)", font=1, adj=0)
 box()
@@ -927,13 +965,16 @@ genProp = data.frame(siteid = names(genProp),
 novGrid = merge(novGrid, genProp, by.x="siteid", by.y="siteid",
                 all.x=TRUE, all.y=FALSE, sort=FALSE)
 
+novTest = novGrid[,c(1,4:7,14)]
+colnames(novTest)[2:5] = paste0(colnames(novTest)[2:5], "Fam")
+
+novTest = merge(novTest, novGridGen[,c(1,4:7)], by.x="siteid", by.y="siteid",
+                all.x=TRUE, all.y=FALSE, sort=FALSE)
+
 genRamp = colorRamp(rev(c("#0D0887FF", "#7E03A8FF", "#CC4678FF", "#F89441FF", "#F0F921FF")))
 
-familyNov = novGrid[,4:7]
-genusNov = novGridGen[,4:7]
-
 pdf("./plots/genFamComp.pdf", height=8, width=8)
-par(mar=c(0,0,0,0), ps=10, tcl=-0.25, mgp=c(3,0.5,0), las=1)
+par(mar=c(0,0,0,0), ps=8, tcl=-0.25, mgp=c(3,0.5,0), las=1)
 
 split.screen(rbind(c(0.1,0.545,0.545,0.99),
                    c(0.545,0.99,0.545,0.99),
@@ -941,10 +982,12 @@ split.screen(rbind(c(0.1,0.545,0.545,0.99),
                    c(0.545,0.99,0.1,0.545),
                    c(0.775,0.975,0.62,0.65)))
 
-sapply(1:ncol(familyNov), function(n){
+mapply(nov = c("noAnalog", "timeArrow", "pastComp", "presentComp"), n=1:4, function(nov, n){
   
   screen(n)
-  plot(genusNov[,n] ~ familyNov[,n], type="n", axes=FALSE, xlab="", ylab="",
+  
+  cols = novTest[,grepl(nov, colnames(novTest))]
+  plot(cols[,2] ~ cols[,1], type="n", axes=FALSE, xlab="", ylab="",
        xlim=c(0,0.23), ylim=c(0,0.3))
   
   if(n %in% c(3,4)){axis(side=1, mgp=c(3,0.1,0)); mtext(side=1, line=1.25, text="Family novelty")
@@ -954,14 +997,17 @@ sapply(1:ncol(familyNov), function(n){
   
   abline(a=0,b=1,lty="31",col="grey")
   
-  novCor = cor(cbind(familyNov[,n], genusNov[,n]))[1,2]
+  novCor = cor(cols)[1,2]
   
   abline(h=0.2,col="red")
   segments(x0=0.15, x1=0.15 , y0=ifelse(n==2, relative.axis.point(0.2, "y"),par("usr")[3]), 
            y1=relative.axis.point(0.9,"y"), col="red")
   
-  points(genusNov[,n] ~ familyNov[,n], pch=21, 
+  points(cols[,2] ~ cols[,1], pch=21, 
          bg=rgb(genRamp(novGrid$genProp)/255))
+  text(cols[match(labPoints, novTest$siteid),2] ~ cols[match(labPoints, novTest$siteid),1], 
+       labels=labPoints, cex=0.75)
+  
   text(x=relative.axis.point(0.02, "x"), y = relative.axis.point(0.95, "y"), 
        labels=paste0("(",LETTERS[n],")"), font=2, adj=0)
   text(x=relative.axis.point(0.1, "x"), y = relative.axis.point(0.95, "y"), 
